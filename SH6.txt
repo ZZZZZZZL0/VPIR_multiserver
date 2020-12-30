@@ -1,7 +1,178 @@
 // encoding hash function: SHA256, with input being an integer  Integer().
+
+//.txt linguist-language=magma
+
+// save as SHA-256.txt before loaded in Magma
+//load "SH6.txt";
+
+
+
+
 function SH6(num);     
 
+V2:=VectorSpace(GF(2),32);
+             //8个hash初值
+h0 := 0x6a09e667;	     h0:=V2!(Reverse(Intseq(h0,2,32)));	    //保证高位在左
+h1 := 0xbb67ae85;      h1:=V2!(Reverse(Intseq(h1,2,32)));
+h2 := 0x3c6ef372;      h2:=V2!(Reverse(Intseq(h2,2,32)));
+h3 := 0xa54ff53a;      h3:=V2!(Reverse(Intseq(h3,2,32)));
+h4 := 0x510e527f;      h4:=V2!(Reverse(Intseq(h4,2,32)));
+h5 := 0x9b05688c;      h5:=V2!(Reverse(Intseq(h5,2,32)));
+h6 := 0x1f83d9ab;      h6:=V2!(Reverse(Intseq(h6,2,32)));
+h7 := 0x5be0cd19;      h7:=V2!(Reverse(Intseq(h7,2,32)));
+             //64个hash常量
+kt:=[
+   0x428a2f98,    0x71374491,    0xb5c0fbcf,    0xe9b5dba5,    0x3956c25b,    0x59f111f1,    0x923f82a4,    0xab1c5ed5,
+   0xd807aa98,    0x12835b01,    0x243185be,    0x550c7dc3,    0x72be5d74,    0x80deb1fe,    0x9bdc06a7,    0xc19bf174,
+   0xe49b69c1,    0xefbe4786,    0x0fc19dc6,    0x240ca1cc,    0x2de92c6f,    0x4a7484aa,    0x5cb0a9dc,    0x76f988da,
+   0x983e5152,    0xa831c66d,    0xb00327c8,    0xbf597fc7,    0xc6e00bf3,    0xd5a79147,    0x06ca6351,    0x14292967,
+   0x27b70a85,    0x2e1b2138,    0x4d2c6dfc,    0x53380d13,    0x650a7354,    0x766a0abb,    0x81c2c92e,    0x92722c85,
+   0xa2bfe8a1,    0xa81a664b,    0xc24b8b70,    0xc76c51a3,    0xd192e819,    0xd6990624,    0xf40e3585,    0x106aa070,
+   0x19a4c116,    0x1e376c08,    0x2748774c,    0x34b0bcb5,    0x391c0cb3,    0x4ed8aa4a,    0x5b9cca4f,    0x682e6ff3,
+   0x748f82ee,    0x78a5636f,    0x84c87814,    0x8cc70208,    0x90befffa,    0xa4506ceb,    0xbef9a3f7,    0xc67178f2 ];
+//___________________________________________next is some defined functions______________________________________________
+v2i:=function(x)			                    //域向量转整数
+        //   v:=Eltseq(x);
+v:=[0: i in [1..Degree(x)]];
+for i in [1..#v] do
+	  if x[i] eq 1 then
+		    v[i]:=1;
+	  end if;
+end for;
+return Seqint(Reverse(v),2);              //magma中高低位与二进制相反
+end function;
+//_________________________________________________________________
+i2v:=function(n)			                    //整数转域向量
+           return V2!( Reverse(Intseq(n mod 2^32,2,32)) );
+end function;
+//_________________________________________________________________
+sigma0:=function(x)
+           v1:=Rotate(x,7);     v2:=Rotate(x,18);       //循环右移
+           v3:=Rotate(x,3);   	
+           for i in [1..3] do      //右移
+			        v3[i]:=0;
+			     end for;
+           return v1+v2+v3;
+end function;
+//_________________________________________________________________
+sigma1:=function(x)
+           v1:=Rotate(x,17);     v2:=Rotate(x,19);       //循环右移
+           v3:=Rotate(x,10);   	for i in [1..10] do      //右移
+			      v3[i]:=0;
+			end for;
+           return v1+v2+v3;
+end function;
+//_________________________________________________________________
+Sigma0:=function(x)
+           v1:=Rotate(x,2);     v2:=Rotate(x,13);     v3:=Rotate(x,22);
+           return v1+v2+v3;
+end function;
+//_________________________________________________________________
+Sigma1:=function(x)
+           v1:=Rotate(x,6);     v2:=Rotate(x,11);     v3:=Rotate(x,25);
+           return v1+v2+v3;
+end function;
+//_________________________________________________________________
+Ch:=function(x,y,z)   			                              //choice
+    v1:=x;	v2:=x;
+    for i in [1..Degree(x)] do
+	      if x[i] eq 1 and y[i] eq 1 then   //按位与
+		      v1[i]:=1;
+	      else
+		      v1[i]:=0;
+	      end if;
 
+	      if x[i] eq 0 and z[i] eq 1 then
+		      v2[i]:=1;
+	      else
+		      v2[i]:=0;
+	      end if;
+    end for;
+return v1+v2;
+end function;
+//_________________________________________________________________
+Ma:=function(x,y,z)   			                            //majority
+    v1:=x;	v2:=x;	v3:=x;
+    for i in [1..Degree(x)] do
+	      if x[i] eq 1 and y[i] eq 1 then  //按位与
+		        v1[i]:=1;
+	      else
+		        v1[i]:=0;
+	      end if;
 
-return Enc_num;
+	      if x[i] eq 1 and z[i] eq 1 then  //按位与
+		        v2[i]:=1;
+	      else
+		        v2[i]:=0;
+	      end if;
+
+	      if y[i] eq 1 and z[i] eq 1 then  //按位与
+		        v3[i]:=1;
+	      else
+		        v3[i]:=0;
+	      end if;
+    end for;
+return v1+v2+v3;
+end function;
+//_________________________________________________________________
+                                                            //INPUT
+                                                            
+                        //a:=Reverse(Intseq(StringToCode("a"),2,8));    
+                        //b:=Reverse(Intseq(StringToCode("b"),2,8)); 
+                        //c:=Reverse(Intseq(StringToCode("c"),2,8)); 
+                        //ipnm:=a cat b cat c;     
+                        
+                        
+                         
+ipnm:=Reverse(Intseq(num));         lenim:=#ipnm;   		                                               
+//_________________________________________________________________
+                                              // 附加填充比特至448位
+ipnm[#ipnm+1]:=1;   
+padd:=512-64-(lenim mod 512)-1;
+ipnm:=ipnm cat [0: i in[1..padd]];
+	                                            //附加长度值
+temp:=Reverse(Intseq(lenim,2,64));  
+ipnm:=ipnm cat temp;      
+//_________________________________________________________________
+	                                       //构造64个word，每一个32bit
+wt:=[];
+for i := 1 to 16 by 1 do 
+	  wt[i]:=V2!(ipnm[32*(i-1)+1..32*i]);
+end for;
+//_________________________________________________________________
+for i := 17 to 64 by 1 do 
+    tempwt:=v2i(sigma1(wt[i-2]))+v2i(wt[i-7])+v2i(sigma0(wt[i-15]))+v2i(wt[i-16]);
+    wt[i]:=i2v(tempwt);
+end for;                //已得到64个word: #wt=64
+//_________________________________________________________________
+					    					          					                 //循环
+a:=h0;   b:=h1;    c:=h2;   d:=h3;   
+e:=h4;   f:=h5;    g:=h6;   h:=h7; 
+for i in [1..64] do
+        tp1:=v2i(h)+v2i(Sigma1(e))+v2i(Ch(e,f,g))+v2i( V2!(Reverse(Intseq(kt[i],2,32))) )+v2i(wt[i]);
+        tp2:=v2i(Sigma0(a))+v2i(Ma(a,b,c));	//big integers
+        h:=g;    g:=f;   f:=e;    
+	                              tpe:=v2i(d)+tp1;     e:=i2v(tpe);   
+        d:=c;    c:=b;   b:=a;   
+	                              tpa:=tp1+tp2;   	a:=i2v(tpa);  
+end for;
+
+hout:=[];
+hout[1]:=(v2i(h0)+v2i(a)) mod 2^32;   hout[2]:=(v2i(h1)+v2i(b)) mod 2^32;   
+hout[3]:=(v2i(h2)+v2i(c)) mod 2^32;   hout[4]:=(v2i(h3)+v2i(d)) mod 2^32;
+hout[5]:=(v2i(h4)+v2i(e)) mod 2^32;   hout[6]:=(v2i(h5)+v2i(f)) mod 2^32;
+hout[7]:=(v2i(h6)+v2i(g)) mod 2^32;   hout[8]:=(v2i(h7)+v2i(h)) mod 2^32;
+
+/*           //this is for the entire N FOR-loop
+h0:=i2v(hout[1]);  h1:=iv2(hout[2]);   h2:=i2v(hout[3]);  h3:=iv2(hout[4]); 
+h4:=i2v(hout[5]);  h5:=iv2(hout[6]);   h6:=i2v(hout[7]);  h7:=iv2(hout[8]); 
+*/
+//_________________________________________________________________
+						   					   					   				  				   //OUTPUT
+Enc_num:="";
+for i in [1..#hout] do
+		 Enc_num:= Enc_num cat IntegerToString(hout[i]);
+end for;
+
+return StringToInteger(Enc_num);
 end function;
