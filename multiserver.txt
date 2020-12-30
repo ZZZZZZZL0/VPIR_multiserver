@@ -1,0 +1,187 @@
+// .Magma
+
+clear;
+
+//__________________________assignment of  E_________________________________        //in pre-processing
+m_set:=[4,5,6,7,9,11,13,16,20,25,31,38,48,60,75,94,118,148,186];
+                           //m_set:  n=2^2, 2^3, ... 2^20, the set of u such that $u\choose d$ \geq n, where d=3;
+                           
+k:=2;	          d:=2*k-1;                     Eset:=[];
+for npower in [2..20]  do 
+      	n:=2^npower;        m:=m_set[npower -1];          
+				//  *********main parameter*********
+	E:=[];        ST:={i: i in [1..m] };        stre:=Subsets(ST,d);        num:=1;
+	for iset in stre do
+	     E[num]:=[0: id in [1..m]];
+	     for j in iset do       
+	          E[num][j]:=1;
+	     end for;
+ 	     num:=num+1;
+	     if num gt n then
+	        break;
+	    end if;
+	end for;
+  
+  Eset[npower -1]:=E;       delete num,ST,stre,E;           
+end for;
+//_____________________________________________________________________________
+
+
+
+
+//__________________________________FUNCTION F_________________________________                  
+function F(z,X,E)  
+                        // the input X is a database, E is the binary vector with Hamming weight being d=3
+                        // z is a vector in the certain field      //ex: z:=FunctionField(gq,m);
+ans:=0;                 
+for i in [1..#X] do  
+      prd:=1;
+      for j in [1..#E[i]] do
+            if E[i][j] eq 1 then
+                 prd:= prd*z.j;
+            end if;
+      end for;
+      ans:= ans+X[i]*prd;      
+end for;
+
+return ans;                
+end function;
+//______________________________________________________________________________
+
+
+
+
+
+
+pirwy:=function(query_index,X,E,Fz)                                          //basic PIR scheme
+//____________________________________INPUT______________________________________
+n:=#X;        k:=2;       d:=2*k-1;       t:=1;     
+npower:=Ceiling(Log(2,n));
+m_set:=[4,5,6,7,9,11,13,16,20,25,31,38,48,60,75,94,118,148,186];
+if npower in [2..20] then
+      m:=m_set[npower-1];                         //  layers of thr Merkle tree
+end if;                                          
+
+//_________________________________pre-processing________________________________ 
+q:=NextPrime(2^256);           Vq:=VectorSpace(GF(q),m);    
+lamda:=[ ];
+for i in [1..k] do
+      lamdi:=Random(GF(q));
+      while lamdi in lamda or lamdi eq 0 do 
+	        lamdi:=Random(GF(q));
+      end while;
+      lamda[i]:=lamdi;
+end for;
+
+   
+V:=[];            P:=Vq!(E[query_index]);        // query_index:  user's desired index
+for i in [1..t] do                               // generate aux: t length-m vectors
+      V[i]:= Vq!( [Random(GF(q)):  i in[1..m] ] );        
+end for; 
+        		// Type(V[i])  ModTupFldElt
+       		  // vector is suitable for scalar-multiplication
+// _____________________________________query_____________________________________
+query:=[];
+for i in [1..k] do
+      query[i]:=P;
+      for j in [1..t] do
+            query[i]:=query[i]+lamda[i]^j*V[j];       
+      end for;
+end for;
+
+tp:=Cputime();  
+// _________________________ answer server_1 (s10,s20,s30) _______________________
+quy:=[];        quy[1]:= [GF(q)| query[1][i]: i in [1..m] ] ; 
+                                   // vector 2 sequence
+Fzq:=[];        Fzq[1]:=Evaluate(Fz, quy[1]);         pfq:=[];         pfq[1]:=[];
+for j in [1..m] do 
+      pfq[1][j]:=Evaluate(Derivative(Fz,j), quy[1]);
+end for;
+// _________________________ answer server_2 (s11,ss21,s31) ______________________
+quy[2]:= [GF(q)| query[2][i]: i in [1..m] ] ;
+Fzq[2]:=Evaluate(Fz,quy[2]);       pfq[2]:=[];
+for j in [1..m] do 
+      pfq[2][j]:=Evaluate(Derivative(Fz,j), quy[2]);
+end for;
+anstime:=Cputime(tp);    
+
+// __________________________________reconstruction________________________________
+Fq<x>:=PolynomialRing(GF(q));    derif:=[];       // set of { f'(lamda_h) }
+for h in [1..k] do
+      der:=[];
+      for io in [1..m] do       
+                        //parla:=P[io];            // because t=1;
+                        //for i in [1..t] do
+                              //parla:=parla+x^i*V[i][io];   // a univariant polynomial
+                        //end for;
+                        //der[io]:=pfq[h][io]*Evaluate(Derivative(parla),lamda[h]);
+            der[io]:=pfq[h][io]*V[1][io];
+      end for;
+      derif[h]:=&+der;
+end for;
+
+coe:=Matrix(GF(q),d*t+1,2*k,[0: i in [1..(d*t+1)*2*k]]);
+for i in [1..k] do
+for j in [1..d*t+1] do
+   if i mod k eq 0 then
+      coe[j][i]:=lamda[k]^(j-1);
+   else
+      coe[j][i]:=lamda[i mod k]^(j-1);
+   end if;
+end for;
+end for;
+
+for i in [k+1..2*k] do
+for j in [1..d*t+1] do
+   if i mod k eq 0 then
+      coe[j][i]:=(j-1)*lamda[k]^(j-2);
+   else
+      coe[j][i]:=(j-1)*lamda[i mod k]^(j-2);
+   end if;
+end for;
+end for;
+                        //Vdt:=VectorSpace(GF(q),d*t);     w:=Vdt!(Fzq cat derif);    
+w:=Vector(GF(q), Fzq cat derif);
+reo,reg:=Solution(coe,w);
+
+return <reo[1] ,anstime>;
+end function;
+// ________________________________________________________________________________
+
+		print "finish loading pirwy";
+    
+    
+    
+    
+    
+    
+// ________________________________________________________________________________
+                                                                    //iteration for variable size of database    
+for npower in [13..20] do
+     print "__________________the following results are with n=2^%o", npower;  
+     n:=2^npower;                       
+     PrintFile("utime_pirwy.txt","when n=2^" cat IntegerToString(npower));
+     PrintFile("stime_pirwy.txt","when n=2^" cat IntegerToString(npower)); 
+     PrintFile("vtime_pirwy.txt","when n=2^" cat IntegerToString(npower)); 
+     PrintFile("ptime_pirwy.txt","when n=2^" cat IntegerToString(npower)); 
+
+Lay_num:=Ceiling(Log(2,n));     
+query_input:=9;     	                // in [0..n-1]
+B:=[ 1: i in [1..n] ];
+                /*
+                B:=[];               // initialize the database
+                for i in [1..n] do           
+                     B[i]:=Random(0,1);
+                end for;
+                */
+// ________________________________________________________________________________
+
+
+
+
+
+
+
+
+
+
