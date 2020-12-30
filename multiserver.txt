@@ -156,7 +156,8 @@ end function;
     
     
 // ________________________________________________________________________________
-                                                                    //iteration for variable size of database    
+                                                                    // iteration for variable size of database    					   
+w:=256;
 for npower in [13..20] do
      print "__________________the following results are with n=2^%o", npower;  
      n:=2^npower;                       
@@ -164,19 +165,31 @@ for npower in [13..20] do
      PrintFile("stime_pirwy.txt","when n=2^" cat IntegerToString(npower)); 
      PrintFile("vtime_pirwy.txt","when n=2^" cat IntegerToString(npower)); 
      PrintFile("ptime_pirwy.txt","when n=2^" cat IntegerToString(npower)); 
-
-Lay_num:=Ceiling(Log(2,n));     
-query_input:=9;     	                // in [0..n-1]
-B:=[ 1: i in [1..n] ];
-                /*
-                B:=[];               // initialize the database
-                for i in [1..n] do           
-                     B[i]:=Random(0,1);
-                end for;
-                */
 // ________________________________________________________________________________
+//x:=[ [1: i in [1..w]] :i in [1..n] ];       query_input:=9;   	  // the user's desired index in [0..n-1]
+x:=[ 2^w : i in [1..n] ];       query_input:=9;   	  // the user's desired index in [0..n-1]
+//_______________________________________HASH______________________________________
+Lay_num:=Ceiling(Log(2,n));          layer:=Lay_num-1;
+HB:=[ []: i in[1..Lay_num-1] ];      HB[Lay_num]:=x;
 
+load "SH6.txt";
 
+while layer gt 0 do
+   len:=#HB[layer+1];
+   for j in [1..Ceiling(len/2)] do
+       str1:=IntegerToString( HB[layer+1,2*j-1] );
+       if 2*j le len then                               // in case of n\neq 2^integer
+           str2:=IntegerToString( HB[layer+1,2*j] );
+           HB[layer,j]:=SH6( StringToInteger(str1 cat str2) );
+       else
+           HB[layer,j]:=SH6( str1 );
+       end if;
+   end for;
+   layer:=layer-1; 
+end while;
+Root:=Hash( IntegerToString(HB[1,1]) cat IntegerToString(HB[1,2]) );
+
+itrivial := 2;                                           // **********trivial retrieval**********
 
 
 
