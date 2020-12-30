@@ -1,0 +1,7 @@
+// encoding hash function: SHA256, with input being an integer  Integer().
+function SH6(num);     
+
+
+
+return Enc_num;
+end function;
