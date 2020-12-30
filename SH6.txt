@@ -167,7 +167,8 @@ hout[7]:=(v2i(h6)+v2i(g)) mod 2^32;   hout[8]:=(v2i(h7)+v2i(h)) mod 2^32;
 h0:=i2v(hout[1]);  h1:=iv2(hout[2]);   h2:=i2v(hout[3]);  h3:=iv2(hout[4]); 
 h4:=i2v(hout[5]);  h5:=iv2(hout[6]);   h6:=i2v(hout[7]);  h7:=iv2(hout[8]); 
 */
-//_________________________________________________________________					   					   					   				   //OUTPUT
+//_________________________________________________________________
+							   //OUTPUT
 Enc_num:="";
 for i in [1..#hout] do
     Enc_num:= Enc_num cat IntegerToString(hout[i]);
