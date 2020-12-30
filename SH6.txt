@@ -73,7 +73,7 @@ Sigma1:=function(x)
            return v1+v2+v3;
 end function;
 //_________________________________________________________________
-Ch:=function(x,y,z)   			                              //choice
+Ch:=function(x,y,z)   			                   //choice
     v1:=x;	v2:=x;
     for i in [1..Degree(x)] do
 	      if x[i] eq 1 and y[i] eq 1 then   //按位与
@@ -91,7 +91,7 @@ Ch:=function(x,y,z)   			                              //choice
 return v1+v2;
 end function;
 //_________________________________________________________________
-Ma:=function(x,y,z)   			                            //majority
+Ma:=function(x,y,z)   			                 //majority
     v1:=x;	v2:=x;	v3:=x;
     for i in [1..Degree(x)] do
 	      if x[i] eq 1 and y[i] eq 1 then  //按位与
