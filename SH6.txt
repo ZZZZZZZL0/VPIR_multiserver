@@ -169,10 +169,10 @@ h4:=i2v(hout[5]);  h5:=iv2(hout[6]);   h6:=i2v(hout[7]);  h7:=iv2(hout[8]);
 */
 //_________________________________________________________________
 							   //OUTPUT
-Enc_num:="";
+Enc_num:=[];
 for i in [1..#hout] do
-    Enc_num:= Enc_num cat IntegerToString(hout[i]);
+    Enc_num:= Enc_num cat Reverse(Intseq(hout[i],2,32));
 end for;
 
-return StringToInteger(Enc_num);
+return Seqint(Reverse(Enc_num),2);
 end function;
