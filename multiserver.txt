@@ -209,23 +209,104 @@ PrintFile("ptime_pirwy.txt","time of computing Fz is:");
 PrintFile("ptime_pirwy.txt", pretime1); 
 PrintFile("ptime_pirwy.txt","************"); 
 
-//_______________________find the involving indices_____________________
-qy:=Reverse(Intseq(query_input, 2, Lay_num));   
-alpha:=[];       alpha[1]:=Seqint( [(qy[1]+1) mod 2] );
-for j in [2..Lay_num] do
-     temp:=[elt: elt in qy[1..j-1]];       temp[j]:=(qy[j]+1) mod 2;
-     alpha[j]:=Seqint(Reverse(temp),2);
+//________________________find the involving indices______________________
+		//qy:=Reverse(Intseq(query_input, 2, Lay_num));       	  // Reverse 之后： query_input 的二进制表示，高位在前
+alpha:=[0: indx in [1..Lay_num+1]];                       // alpha stores these involving indices
+    alpha[Lay_num+1]:=query_input;      
+    alpha[Lay_num]:= query_input + 1;
+    if query_input mod 2 eq 1 then 
+	alpha[Lay_num]:= query_input - 1;
+    end if;
+for j := Lay_num-1 to 1 by -1 do
+     alpha[j]:= Floor(alpha[j+1]/2);
 end for;
-alpha[Lay_num+1]:=query_input;            // alpha stores these involving indices
 
 utime2:=Cputime(pret);
+PrintFile("ptime_pirwy.txt","time of finding the involving indices is:");  
 PrintFile("utime_pirwy.txt",utime2-pretime1); 
 PrintFile("utime_pirwy.txt","************"); 
 delete pret;
 
+//______________________execute the multiserver PIR______________________
+	print "begin execute the multiserver PIR";
+	
+iterations:= 40;                              // 每个n循环40次
+for cyc in [1..iterations] do	              // **********iteration**********
+Res:=[];       // 记录PIR的检索结果  
+servertime:=[];       fztime:=[];  
+ 		
+		
+		
+		
+		
+		
+				
+		
+		
+		// 1230
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+ct:=Cputime();  
+for itriv in [1..itrivial] do
+	Res[itriv]:=HB[itriv,alpha[itriv]+1]; 
+end for;
 
+for i in [itrivial+1..Lay_num+1] do
+	fzt:=Cputime(); 
+        if i ge Lay_num then
+                X:=HB[Lay_num];             E:=Eset[Lay_num-1];		
+        else
+	X:=HB[i]; 		        E:=Eset[i-1];             // i-1: due to Eset begins from 2	
+        end if;
 
+        query_index:=alpha[i]+1;       Fz:=FZ[i-itrivial];       // i-itrivial: FZ begins from itrivial
+        	fztime[i-itrivial]:=Cputime(fzt);         
+        	delete fzt;
+        Rep:=pirwy(query_index,X,E,Fz);        Res[i]:=Rep[1];      
+        servertime[i-itrivial]:=Rep[2];         
+end for;
+                 
+//_________________Verification__________________
+vft:=Cputime(ct);    
+ver:=IntegerToString( Res[Lay_num+1] );         // MonStgElt 
+j:=Lay_num;
+while j gt 0 do
+    tempj:=IntegerToString( Res[j] );    	          // MonStgElt
+    if IsOdd(alpha[j]) then
+       ver:=IntegerToString( Hash(ver cat tempj) );
+    else
+       ver:=IntegerToString( Hash(tempj cat ver) );
+    end if;
+    j:=j-1;
+end while;
 
+if  ver eq IntegerToString(Root) then
+     print "result",Res[#Res],", pass the verification";
+else 
+     print "result",Res[#Res],", does NOT pass the verification";
+end if;
+
+wholetime:=Cputime(ct);    //****time of query+reconstruction+verification
+delete ct;
+
+PrintFile("vtime_pirwy.txt",wholetime-vft); 
+ptime:=&+fztime;         stime:=&+servertime;          // *******time of answer       
+PrintFile("stime_pirwy.txt",stime);      
+PrintFile("ptime_pirwy.txt",ptime); 
+PrintFile("utime_pirwy.txt", vft - stime - ptime);
+
+end for;   // end for the  40  iterations
+end for;   // end for npower iterations
 
 
 
