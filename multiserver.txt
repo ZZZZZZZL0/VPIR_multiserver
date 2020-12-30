@@ -155,9 +155,10 @@ end function;
     
     
     
-// ________________________________________________________________________________
+//_________________________________________________________________________________
                                                                     // iteration for variable size of database    					   
-w:=256;
+w:=256;          itrivial := 7;                                     //using the trivial scheme when n \leq 148;  2^7 =128
+
 for npower in [13..20] do
      print "__________________the following results are with n=2^%o", npower;  
      n:=2^npower;                       
@@ -166,7 +167,7 @@ for npower in [13..20] do
      PrintFile("vtime_pirwy.txt","when n=2^" cat IntegerToString(npower)); 
      PrintFile("ptime_pirwy.txt","when n=2^" cat IntegerToString(npower)); 
 // ________________________________________________________________________________
-//x:=[ [1: i in [1..w]] :i in [1..n] ];       query_input:=9;   	  // the user's desired index in [0..n-1]
+		//x:=[ [1: i in [1..w]] :i in [1..n] ];   
 x:=[ 2^w : i in [1..n] ];       query_input:=9;   	  // the user's desired index in [0..n-1]
 //_______________________________________HASH______________________________________
 Lay_num:=Ceiling(Log(2,n));          layer:=Lay_num-1;
@@ -180,17 +181,47 @@ while layer gt 0 do
        str1:=IntegerToString( HB[layer+1,2*j-1] );
        if 2*j le len then                               // in case of n\neq 2^integer
            str2:=IntegerToString( HB[layer+1,2*j] );
-           HB[layer,j]:=SH6( StringToInteger(str1 cat str2) );
+           HB[layer,j]:= SH6( StringToInteger(str1 cat str2) );          // both the input and output of SH6(integer) are integers
        else
-           HB[layer,j]:=SH6( str1 );
+           HB[layer,j]:= SH6( str1 );
        end if;
    end for;
-   layer:=layer-1; 
+   layer:= layer - 1; 
 end while;
-Root:=Hash( IntegerToString(HB[1,1]) cat IntegerToString(HB[1,2]) );
+Root:= SH6(  StringToInteger( IntegerToString(HB[1,1]) cat IntegerToString(HB[1,2]) )   );
 
-itrivial := 2;                                           // **********trivial retrieval**********
+/_______________________________________TIMING_____________________________________
+pret:=Cputime();
+//_________________________________________________________________________________
+q:=NextPrime(2^32);       	       FZ:=<>;
+for i in [itrivial+1..Lay_num+1] do
+        if i ge Lay_num then
+		X:=HB[Lay_num];      E:=Eset[Lay_num-1];       z:=FunctionField(GF(q),m_set[Lay_num-1]);   
+							  // FuunctionField(GF(p), m) --> Multivariate rational function field of rank m over GF(p)
+	else
+		X:=HB[i]; 	     E:=Eset[i-1];	       z:=FunctionField(GF(q),m_set[i-1]);	                 
+        end if;
+        FZ:=Append(FZ, F(z,X,E));                         // in pre-processing, generate all the function 
+end for;
+//_______________________________________________________________________
+pretime1:=Cputime(pret);
+PrintFile("ptime_pirwy.txt","time of computing Fz is:");     
+PrintFile("ptime_pirwy.txt", pretime1); 
+PrintFile("ptime_pirwy.txt","************"); 
 
+//_______________________find the involving indices_____________________
+qy:=Reverse(Intseq(query_input, 2, Lay_num));   
+alpha:=[];       alpha[1]:=Seqint( [(qy[1]+1) mod 2] );
+for j in [2..Lay_num] do
+     temp:=[elt: elt in qy[1..j-1]];       temp[j]:=(qy[j]+1) mod 2;
+     alpha[j]:=Seqint(Reverse(temp),2);
+end for;
+alpha[Lay_num+1]:=query_input;            // alpha stores these involving indices
+
+utime2:=Cputime(pret);
+PrintFile("utime_pirwy.txt",utime2-pretime1); 
+PrintFile("utime_pirwy.txt","************"); 
+delete pret;
 
 
 
