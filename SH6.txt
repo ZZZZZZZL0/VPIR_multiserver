@@ -145,7 +145,7 @@ for i := 17 to 64 by 1 do
     wt[i]:=i2v(tempwt);
 end for;                //已得到64个word: #wt=64
 //_________________________________________________________________
-					    					          					                 //循环
+					    		      //循环
 a:=h0;   b:=h1;    c:=h2;   d:=h3;   
 e:=h4;   f:=h5;    g:=h6;   h:=h7; 
 for i in [1..64] do
@@ -158,7 +158,7 @@ for i in [1..64] do
 end for;
 
 hout:=[];
-hout[1]:=(v2i(h0)+v2i(a)) mod 2^32;   hout[2]:=(v2i(h1)+v2i(b)) mod 2^32;   
+hout[1]:=(v2i(h0)+v2i(a)) mod 2^32;   hout[2]:=(v2i(h1)+v2i(b)) mod 2^32;     //整数
 hout[3]:=(v2i(h2)+v2i(c)) mod 2^32;   hout[4]:=(v2i(h3)+v2i(d)) mod 2^32;
 hout[5]:=(v2i(h4)+v2i(e)) mod 2^32;   hout[6]:=(v2i(h5)+v2i(f)) mod 2^32;
 hout[7]:=(v2i(h6)+v2i(g)) mod 2^32;   hout[8]:=(v2i(h7)+v2i(h)) mod 2^32;
@@ -167,11 +167,10 @@ hout[7]:=(v2i(h6)+v2i(g)) mod 2^32;   hout[8]:=(v2i(h7)+v2i(h)) mod 2^32;
 h0:=i2v(hout[1]);  h1:=iv2(hout[2]);   h2:=i2v(hout[3]);  h3:=iv2(hout[4]); 
 h4:=i2v(hout[5]);  h5:=iv2(hout[6]);   h6:=i2v(hout[7]);  h7:=iv2(hout[8]); 
 */
-//_________________________________________________________________
-						   					   					   				  				   //OUTPUT
+//_________________________________________________________________					   					   					   				   //OUTPUT
 Enc_num:="";
 for i in [1..#hout] do
-		 Enc_num:= Enc_num cat IntegerToString(hout[i]);
+    Enc_num:= Enc_num cat IntegerToString(hout[i]);
 end for;
 
 return StringToInteger(Enc_num);
