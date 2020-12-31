@@ -219,7 +219,7 @@ PrintFile("ptime_pirwy.txt","____________________________");
 		//qy:=Reverse(Intseq(query_input, 2, Lay_num));       	  // Reverse 之后： query_input 的二进制表示，高位在前		
 pre1:=Cputime();
 
-alpha:=[0: indx in [1..Lay_num+1]];            // alpha stores these involving indices
+alpha:=[0: indx in [1..Lay_num+1]];            // alpha stores these involving indices, starts from 0
     alpha[Lay_num+1]:=query_input;      
     alpha[Lay_num]:= query_input + 1;
     if query_input mod 2 eq 1 then 
