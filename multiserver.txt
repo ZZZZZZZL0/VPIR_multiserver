@@ -157,29 +157,27 @@ end function;
     
 //_________________________________________________________________________________
                                                                     // iteration for variable size of database    					   
-w:=256;          itrivial := 7;                                     //using the trivial scheme when n \leq 148;  2^7 =128
+load "SH6.txt";		w:=256;          itrivial := 7;             // using the trivial scheme when n \leq 148;  2^7 =128
 
 for npower in [13..20] do
      print "__________________the following results are with n=2^%o", npower;  
      n:=2^npower;                       
      PrintFile("utime_pirwy.txt","when n=2^" cat IntegerToString(npower));
      PrintFile("stime_pirwy.txt","when n=2^" cat IntegerToString(npower)); 
-     PrintFile("vtime_pirwy.txt","when n=2^" cat IntegerToString(npower)); 
      PrintFile("ptime_pirwy.txt","when n=2^" cat IntegerToString(npower)); 
-// ________________________________________________________________________________
-		//x:=[ [1: i in [1..w]] :i in [1..n] ];   
-x:=[ 2^w : i in [1..n] ];       query_input:=9;   	  // the user's desired index in [0..n-1]
+
+x:=[ 2^w-1 : i in [1..n] ];       query_input:=9;   	  // the user's desired index in [0..n-1]
 //_______________________________________HASH______________________________________
+pretm:=Cputime();
+
 Lay_num:=Ceiling(Log(2,n));          layer:=Lay_num-1;
 HB:=[ []: i in[1..Lay_num-1] ];      HB[Lay_num]:=x;
-
-load "SH6.txt";
 
 while layer gt 0 do
    len:=#HB[layer+1];
    for j in [1..Ceiling(len/2)] do
        str1:=IntegerToString( HB[layer+1,2*j-1] );
-       if 2*j le len then                               // in case of n\neq 2^integer
+       if 2*j le len then                                  // in case of n\neq 2^integer
            str2:=IntegerToString( HB[layer+1,2*j] );
            HB[layer,j]:= SH6( StringToInteger(str1 cat str2) );          // both the input and output of SH6(integer) are integers
        else
@@ -188,11 +186,9 @@ while layer gt 0 do
    end for;
    layer:= layer - 1; 
 end while;
-Root:= SH6(  StringToInteger( IntegerToString(HB[1,1]) cat IntegerToString(HB[1,2]) )   );
+Root:= SH6( StringToInteger(IntegerToString(HB[1,1]) cat IntegerToString(HB[1,2]))  );
 
-/_______________________________________TIMING_____________________________________
-pre1:=Cputime();
-//_________________________________________________________________________________
+//_________________________________________________________________________
 q:=NextPrime(2^32);       	       FZ:=<>;
 for i in [itrivial+1..Lay_num+1] do
         if i ge Lay_num then
@@ -203,15 +199,15 @@ for i in [itrivial+1..Lay_num+1] do
         end if;
         FZ:=Append(FZ, F(z,X,E));                         // pre-processing, generate all the function, stars from itrivial+1
 end for;
-//_______________________________________________________________________
-pretime1:=Cputime(pre1);
-PrintFile("ptime_pirwy.txt","time of computing Fz is:");     
-PrintFile("ptime_pirwy.txt", pretime1); 
-PrintFile("ptime_pirwy.txt","************"); 
 
+pretime:=Cputime(pretm);      delete pretm;
+PrintFile("ptime_pirwy.txt", <"the preparation time is ", pretime> );     
+PrintFile("ptime_pirwy.txt","____________________________"); 
 //________________________find the involving indices______________________
-		//qy:=Reverse(Intseq(query_input, 2, Lay_num));       	  // Reverse 之后： query_input 的二进制表示，高位在前
-alpha:=[0: indx in [1..Lay_num+1]];                       // alpha stores these involving indices
+		//qy:=Reverse(Intseq(query_input, 2, Lay_num));       	  // Reverse 之后： query_input 的二进制表示，高位在前		
+pre1:=Cputime();
+
+alpha:=[0: indx in [1..Lay_num+1]];            // alpha stores these involving indices
     alpha[Lay_num+1]:=query_input;      
     alpha[Lay_num]:= query_input + 1;
     if query_input mod 2 eq 1 then 
@@ -221,44 +217,36 @@ for j := Lay_num-1 to 1 by -1 do
      alpha[j]:= Floor(alpha[j+1]/2);
 end for;
 
-utime1:=Cputime(pre1);
-PrintFile("ptime_pirwy.txt","time of finding the involving indices is:");  
-PrintFile("utime_pirwy.txt",utime1-pretime1); 
-PrintFile("utime_pirwy.txt","************");    delete pret;
+utimep:=Cputime(pre1);       delete pre1;    // 40次循环之前的user准备工作
 
+		// PrintFile("ptime_pirwy.txt","time of finding the involving indices is:");  
+		// PrintFile("utime_pirwy.txt",utimep); 
+		// PrintFile("utime_pirwy.txt","************"); 		
 //______________________execute the multiserver PIR______________________
-	print "begin execute the multiserver PIR";
-	
-iterations:= 40;                              // 每个n循环40次
-for cyc in [1..iterations] do	              // **********iteration**********
-Res:=[];       				      // 记录PIR的检索结果  
-servertime:=[];       fztime:=[];  	
-		
-		
+	print "begin execute the multiserver PIR";	
+iterations:= 40;                              					// 每个n循环40次
+for cyc in [1..iterations] do	              
+	Res:=[];       				      // 记录PIR的检索结果  
+	servertime:=[];       			      // 记录PIR检索时server花费的时间  				
 		
 ct:=Cputime();  
+
 for itriv in [1..itrivial] do
 	Res[itriv]:= HB[itriv,alpha[itriv]+1]; 
 end for;
 
 for i in [itrivial+1..Lay_num+1] do
-	pre2:=Cputime(); 
         if i ge Lay_num then
                 X:= HB[Lay_num];       E:=Eset[Lay_num-1];		
         else
 		X:=HB[i]; 	       E:=Eset[i-1];             // i-1: due to Eset stars from log n = 2	
-        end if;
-
+        end if;	
         query_index:=alpha[i]+1;       Fz:=FZ[i-itrivial];       // i-itrivial: FZ begins from itrivial+1
-        fztime[i-itrivial]:=Cputime(pre2);      delete pre2;     // [prepare time]  finding the involving indices
-        
         Rep:=pirwy(query_index,X,E,Fz);         Res[i]:=Rep[1];      
         servertime[i-itrivial]:=Rep[2];         
-end for;
-                 
-//_________________Verification__________________
-vft:=Cputime(ct);    
-ver:=IntegerToString( Res[Lay_num+1] );         // MonStgElt 
+end for;             
+//________________________________Verification__________________________   
+ver:=IntegerToString( Res[Lay_num+1] );         	  // MonStgElt 
 j:=Lay_num;
 while j gt 0 do
     tempj:=IntegerToString( Res[j] );    	          // MonStgElt
@@ -270,20 +258,17 @@ while j gt 0 do
     j:=j-1;
 end while;
 
-if  ver eq IntegerToString(Root) then
+if  ver eq Root then
      print "result",Res[#Res],", pass the verification";
 else 
      print "result",Res[#Res],", does NOT pass the verification";
 end if;
-
+//____________________________________________________________________
 wholetime:=Cputime(ct);    //****time of query+reconstruction+verification
 delete ct;
-
-PrintFile("vtime_pirwy.txt",wholetime-vft); 
-ptime:=&+fztime;         stime:=&+servertime;          // *******time of answer       
-PrintFile("stime_pirwy.txt",stime);      
-PrintFile("ptime_pirwy.txt",ptime); 
-PrintFile("utime_pirwy.txt", vft - stime - ptime);
+     			     
+PrintFile("stime_pirwy.txt", &+servertime);               // *******time of answer  
+PrintFile("utime_pirwy.txt", wholetime - stime + utimep);
 
 end for;   // end for the  40  iterations
 end for;   // end for npower iterations
