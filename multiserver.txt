@@ -158,6 +158,25 @@ end function;
 //_________________________________________________________________________________
                                                                     // iteration for variable size of database    					   
 load "SH6.txt";		w:=256;          itrivial := 7;             // using the trivial scheme when n \leq 148;  2^7 =128
+//_______________________________________________________________________________
+Lay_num:= 20;          		     layer:=Lay_num-1;
+HBBG:=[ []: i in[1..Lay_num-1] ];      HBBG[Lay_num]:=x;
+
+while layer gt 0 do
+   len:=#HB[layer+1];
+   for j in [1..Ceiling(len/2)] do
+       str1:=IntegerToString( HB[layer+1,2*j-1] );
+       if 2*j le len then                                  // in case of n\neq 2^integer
+           str2:=IntegerToString( HB[layer+1,2*j] );
+           HBBG[layer,j]:= SH6( StringToInteger(str1 cat str2) );          // both the input and output of SH6(integer) are integers
+       else
+           HBBG[layer,j]:= SH6( str1 );
+       end if;
+   end for;
+   layer:= layer - 1; 
+end while;
+RootHBBG:= SH6( StringToInteger(IntegerToString(HBBG[1,1]) cat IntegerToString(HBBG[1,2]))  );
+//_______________________________________________________________________________
 
 for npower in [13..20] do
      print "__________________the following results are with n=2^%o", npower;  
@@ -169,26 +188,28 @@ for npower in [13..20] do
 x:=[ 2^w-1 : i in [1..n] ];       query_input:=9;   	  // the user's desired index in [0..n-1]
 //_______________________________________HASH______________________________________
 pretm:=Cputime();
+Lay_num:= Ceiling(Log(2,n));          layer:=Lay_num-1;
+if Lay_num eq 20 then 
+	HB:=BHHG;      Root:= RootHBBG;
+else 
+	HB:=[ []: i in[1..Lay_num-1] ];       HB[Lay_num]:=x;
+	idst:= 20-Lay_num;		Root:= HBBG[idst,1];
+	for i in [1..Lay_num] do 
+		HB[i]:= HBBG[idst+i][1..2^i];	
+	end for;
+end if;
 
-Lay_num:=Ceiling(Log(2,n));          layer:=Lay_num-1;
-HB:=[ []: i in[1..Lay_num-1] ];      HB[Lay_num]:=x;
 
-while layer gt 0 do
-   len:=#HB[layer+1];
-   for j in [1..Ceiling(len/2)] do
-       str1:=IntegerToString( HB[layer+1,2*j-1] );
-       if 2*j le len then                                  // in case of n\neq 2^integer
-           str2:=IntegerToString( HB[layer+1,2*j] );
-           HB[layer,j]:= SH6( StringToInteger(str1 cat str2) );          // both the input and output of SH6(integer) are integers
-       else
-           HB[layer,j]:= SH6( str1 );
-       end if;
-   end for;
-   layer:= layer - 1; 
-end while;
-Root:= SH6( StringToInteger(IntegerToString(HB[1,1]) cat IntegerToString(HB[1,2]))  );
 
-//_________________________________________________________________________
+
+
+
+
+
+
+
+
+//_______________________________________________________________________________
 q:=NextPrime(2^32);       	       FZ:=<>;
 for i in [itrivial+1..Lay_num+1] do
         if i ge Lay_num then
