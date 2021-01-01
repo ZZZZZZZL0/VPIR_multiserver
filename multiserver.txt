@@ -6,11 +6,11 @@ function SH6(num)					// input: an integer
 
 V2:=VectorSpace(GF(2),32);
 			//8个hash初值
-h0 := 0x6a09e667;	h0:=V2!(Reverse(Intseq(h0,2,32)));	//保证高位在左
+h0 := 0x6a09e667;	     h0:=V2!(Reverse(Intseq(h0,2,32)));	//保证高位在左
 h1 := 0xbb67ae85;       h1:=V2!(Reverse(Intseq(h1,2,32)));
-h2 := 0x3c6ef372;       h2:=V2!(Reverse(Intseq(h2,2,32)));
-h3 := 0xa54ff53a;       h3:=V2!(Reverse(Intseq(h3,2,32)));
-h4 := 0x510e527f;       h4:=V2!(Reverse(Intseq(h4,2,32)));
+h2 := 0x3c6ef372;        h2:=V2!(Reverse(Intseq(h2,2,32)));
+h3 := 0xa54ff53a;         h3:=V2!(Reverse(Intseq(h3,2,32)));
+h4 := 0x510e527f;        h4:=V2!(Reverse(Intseq(h4,2,32)));
 h5 := 0x9b05688c;       h5:=V2!(Reverse(Intseq(h5,2,32)));
 h6 := 0x1f83d9ab;       h6:=V2!(Reverse(Intseq(h6,2,32)));
 h7 := 0x5be0cd19;       h7:=V2!(Reverse(Intseq(h7,2,32)));
@@ -305,15 +305,12 @@ end function;
          
 
 
-
-
 tpre:=Cputime();
+
 w:=256;           q:=NextPrime(2^w);             itrivial := 7;  
 		// using the trivial scheme when n \leq 148;  2^7 =128
 mx:=13; 
 //_________________________________________________________________________________
-
-
 
 								// [ pre-processing
 //__________________________assignment of  E______________________________________        
@@ -341,7 +338,7 @@ for npower in [itrivial+1..mx]  do
           Eset[npower]:=E;       delete num,ST,stre,E;           
 end for;
       
-print Cputime(tpre);   	
+print Cputime(tpre);   	        //the most time-consumed part
 print "finish assignment E";  		
 //___________________________________HASH________________________________________
 Lay_num:= mx;          		     layer:=Lay_num-1;
@@ -397,11 +394,11 @@ pretm:=Cputime();
 FZ:=<>;
 for i in [itrivial+1..Lay_num+1] do
         if i ge Lay_num then
-	X:=HB[Lay_num];      E:=Eset[Lay_num-1];       
-	z:=FunctionField(GF(q),m_set[Lay_num-1]);   		
+	X:=HB[Lay_num];      E:=Eset[Lay_num];       
+	z:=FunctionField(GF(q),m_set[Lay_num]);   		
 	else
-	X:=HB[i]; 	     E:=Eset[i-1];	       
-	z:=FunctionField(GF(q),m_set[i-1]);	                 
+	X:=HB[i]; 	     E:=Eset[i];	       
+	z:=FunctionField(GF(q),m_set[i]);	                 
         end if;
         FZ:=Append(FZ, F(z,X,E));                     
 end for;
@@ -429,7 +426,7 @@ utimep:=Cputime(pretm)-pretime;       delete pretm;    // 40次循环之前的us
 ute:=[];	ste:=[];
 
 iteration:= 2;                              	                      // 每个n循环40次
-for cyc in [1..iteration] do	              
+for ite in [1..iteration] do	              
 	Res:=[];       			      // 记录PIR的检索结果  
 	servertime:=[];       			      // 记录PIR检索时server花费的时间  					
 ct:=Cputime();  
@@ -461,27 +458,26 @@ while j gt 0 do
     j:=j-1;
 end while;
 
+	if cyc le 1 then
 if  ver eq Root  then
      print "result",Res[#Res],", pass the verification";
 else 
      print "result",Res[#Res],", does NOT pass the verification";
 end if; 
+	end if;
 //____________________________________________________________________
 
 wholetime:=Cputime(ct);    //****time of query+reconstruction+verification
 delete ct;
 
-ste[iteration]:= &+servertime;
-ute[iteration]:= wholetime - ste[iteration] + utimep;   
+ste[ite]:= &+servertime;
+ute[ite]:= wholetime - ste[ite] + utimep;   
   
-PrintFile("stime_pirwy1231.txt", ste[iteration]); // *******time of answer  
-PrintFile("utime_pirwy1231.txt", ute[iteration]);
- 
-end for;   		   // end for the  40  iterations
+PrintFile("stime_pirwy1231.txt", ste[ite]);               // *******time of answer  
+PrintFile("utime_pirwy1231.txt", ute[ite]);
+
+end for;   // end for the  40  iterations
 PrintFile("stime_pirwy1231.txt", <"____the server's average time is:", &+ste/#ste>);  
 PrintFile("utime_pirwy1231.txt", <"______the user's average time is:", &+ute/#ute>);
 
-end for;  		   // end for npower iterations
-
-
-
+end for;   // end for npower iterations
