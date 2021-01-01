@@ -1,0 +1,116 @@
+
+pirwy:=function(query_index,X,E,Fz)                                          //basic PIR scheme
+//____________________________________INPUT______________________________________
+n:=#X;        k:=2;       d:=2*k-1;       t:=1;     
+npower:=Ceiling(Log(2,n));
+m_set:=[4,4,5,6,7,9,11,13,16,20,25,31,38,48,60,75,94,118,148,186];
+if npower in [2..#m_set] then
+      m:=m_set[npower];                         //  layers of thr Merkle tree
+end if;                                          
+
+//_________________________________pre-processing________________________________ 
+q:= NextPrime(2^256);	 Vq:=VectorSpace(GF(q),m);    
+lamda:=[2,3];      			 // 用固定值取代随机生成
+/*
+lamda:=[ ];
+for i in [1..k] do
+      lamdi:=Random(GF(q));
+      while lamdi in lamda or lamdi eq 0 do 
+	        lamdi:=Random(GF(q));
+      end while;
+      lamda[i]:=lamdi;
+end for;
+*/
+   
+V:=[];           
+for i in [1..t] do                                         // generate aux: t length-m vectors
+      //V[i]:= Vq!( [Random(GF(q)):  i in[1..m] ] );               
+       //  V[i]:= Vq!( [7:  i in[1..m] ] );   	 // 用固定值取代随机生成
+	V[i]:= [7:  i in[1..m] ] ;   	 // 用固定值取代随机生成
+end for; 
+// _____________________________________query_____________________________________
+P:=Vq!(E[query_index]);       // query_index:  user's desired index
+query:=[];
+for i in [1..k] do
+      query[i]:=P;
+      for j in [1..t] do
+            tempv:=Vq ! V[j];
+            query[i]:=query[i]+lamda[i]^j*tempv;       
+      end for;
+end for;
+
+tp:=Cputime();  
+// _________________________ answer server_1 (s10,s20,s30) _______________________
+quy:=[];        // quy[1]:= Eltseq(query[1]);    // vector 2 sequence
+quy[1]:=[];
+for iy in [1..Degree(query[1])] do
+	for jy in [0..q-1] do
+		if query[1][iy] eq jy then
+			quy[1][iy]:=jy;
+			break;
+		end if;
+	end for;
+end for;
+	// the input quy[1] should be in RationalField
+Fzq:=[];        Fzq[1]:=Evaluate(Fz, quy[1]);         pfq:=[];         pfq[1]:=[];
+for j in [1..m] do 
+      pfq[1][j]:=Evaluate(Derivative(Fz,j), quy[1]);
+end for;
+// _________________________ answer server_2 (s11,ss21,s31) ______________________
+quy[2]:=[];       
+for iy in [1..Degree(query[1])] do
+	for jy in [0..q-1] do
+		if query[2][iy] eq jy then
+			quy[2][iy]:=jy;
+			break;
+		end if;
+	end for;
+end for;
+
+Fzq[2]:=Evaluate(Fz,quy[2]);       pfq[2]:=[];
+for j in [1..m] do 
+      pfq[2][j]:=Evaluate(Derivative(Fz,j), quy[2]);
+end for;
+anstime:=Cputime(tp);          	//answer is Fzq[2], pfq[2][1],  pfq[2][2], ...pfq[2][m]
+
+// __________________________________reconstruction________________________________
+Fq<x>:=PolynomialRing(GF(q));    derif:=[];       // set of { f'(lamda_h) }
+for h in [1..k] do
+      der:=[];
+      for io in [1..m] do       
+                        //parla:=P[io];            // because t=1;
+                        //for i in [1..t] do
+                              //parla:=parla+x^i*V[i][io];   // a univariant polynomial
+                        //end for;
+                        //der[io]:=pfq[h][io]*Evaluate(Derivative(parla),lamda[h]);
+            der[io]:=pfq[h][io]*V[1][io];
+      end for;
+      derif[h]:=&+der;        //对应f'(\lamda)
+end for;
+
+coe:=Matrix(GF(q),d*t+1,2*k,[0: i in [1..(d*t+1)*2*k]]);
+for i in [1..k] do
+for j in [1..d*t+1] do
+   if i mod k eq 0 then
+      coe[j][i]:=lamda[k]^(j-1);
+   else
+      coe[j][i]:=lamda[i mod k]^(j-1);
+   end if;
+end for;
+end for;
+
+for i in [k+1..2*k] do
+for j in [1..d*t+1] do
+   if i mod k eq 0 then
+      coe[j][i]:=(j-1)*lamda[k]^(j-2);
+   else
+      coe[j][i]:=(j-1)*lamda[i mod k]^(j-2);
+   end if;
+end for;
+end for;
+  			
+tpv:=Fzq cat derif;      reo,reg:=Solution(coe, Vector(tpv));  
+return <reo[1] ,anstime>;
+end function;
+//__________________*********************************************_________________
+		print "finish loading pirwy";  
