@@ -139,8 +139,8 @@ for j in [1..d*t+1] do
 end for;
 end for;
                         //Vdt:=VectorSpace(GF(q),d*t);     w:=Vdt!(Fzq cat derif);    
-w:=Vector(GF(q), Fzq cat derif);
-reo,reg:=Solution(coe,w);
+tp:=Vector(Fzq cat derif);
+reo,reg:=Solution(coe,tp);
 
 return <reo[1] ,anstime>;
 end function;
