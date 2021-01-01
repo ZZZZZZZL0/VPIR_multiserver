@@ -336,10 +336,9 @@ for npower in [itrivial+1..mx]  do
           end for;
 
           Eset[npower]:=E;       delete num,ST,stre,E;           
-end for;
-      
-print Cputime(tpre);   	        //the most time-consumed part
-print "finish assignment E";  		
+end for;    
+ 	 		//ASSIGNMENT IS THE MOST TIME-CONSUMED PART
+print "assignment E consumes", Cputime(tpre);  		
 //___________________________________HASH________________________________________
 Lay_num:= mx;          		     layer:=Lay_num-1;
 HBBG:=[ []: i in[1..Lay_num-1] ];      HBBG[Lay_num]:=[ 2^w-1 : i in [1..2^mx] ];
@@ -354,9 +353,8 @@ end while;
 str1:= IntegerToString(HBBG[1,1]);
 RootHBBG:= SH6( StringToInteger(str1 cat str1) );    
 delete layer, str1;
-//________________________________________________________________________________
-print Cputime(tpre);       delete tpre;
-print "finish HASH";  
+//________________________________________________________________________________    
+print "+HASH consumes", Cputime(tpre);          delete tpre;
 
 
 				// finish the pre-processing
@@ -368,7 +366,7 @@ print "finish HASH";
 
 
 //________________________________________________________________________________
-for npower in [13..mx] do
+for npower in [12..mx] do
      print "__________________the following results are with n=2^%o", npower;  
      n:=2^npower;                       
      PrintFile("utime_pirwy1231.txt","when n=2^" cat IntegerToString(npower));
@@ -404,7 +402,7 @@ for i in [itrivial+1..Lay_num+1] do
 end for;
 
 pretime:=Cputime(pretm);      
-PrintFile("ptime_pirwy1231.txt", <"the preparation time of the server is ", pretime> );     
+PrintFile("ptime_pirwy1231.txt", <"server's preparation: generate FZ consumes", pretime> );     
 PrintFile("ptime_pirwy1231.txt", "____________________________"); 
 
 //_________________________find the involving indices__________________________		
@@ -427,12 +425,12 @@ ute:=[];	ste:=[];
 
 iteration:= 2;                              	                      // 每个n循环40次
 for ite in [1..iteration] do	              
-	Res:=[];       			      // 记录PIR的检索结果  
-	servertime:=[];       			      // 记录PIR检索时server花费的时间  					
+        Res:=[];       			      // 记录PIR的检索结果  
+        servertime:=[];       			      // 记录PIR检索时server花费的时间  			
 ct:=Cputime();  
 
 for itriv in [1..itrivial] do
-	Res[itriv]:= HB[itriv,alpha[itriv]+1]; 
+        Res[itriv]:= HB[itriv,alpha[itriv]+1]; 
 end for;
 
 for i in [itrivial+1..Lay_num+1] do
@@ -448,21 +446,21 @@ end for;
 //________________________________Verification__________________________   
 ver:=Res[Lay_num+1];         	 j:=Lay_num;
 while j gt 0 do
-    ver:=IntegerToString(ver);
-    tempj:=IntegerToString( Res[j] );    	          // MonStgElt
-    if IsOdd(alpha[j]) then
-       ver:=SH6(StringToInteger(ver cat tempj) );
-    else
-       ver:=SH6(StringToInteger(tempj cat ver) );
-    end if;
-    j:=j-1;
+        ver:=IntegerToString(ver);
+        tempj:=IntegerToString( Res[j] );    	          // MonStgElt
+        if IsOdd(alpha[j]) then
+                ver:=SH6(StringToInteger(ver cat tempj) );
+        else
+                ver:=SH6(StringToInteger(tempj cat ver) );
+        end if;
+        j:=j-1;
 end while;
 
-	if cyc le 1 then
+	if ite eq 1 then
 if  ver eq Root  then
-     print "result",Res[#Res],", pass the verification";
+        print "result",Res[#Res],", pass the verification";
 else 
-     print "result",Res[#Res],", does NOT pass the verification";
+        print "result",Res[#Res],", does NOT pass the verification";
 end if; 
 	end if;
 //____________________________________________________________________
@@ -473,11 +471,18 @@ delete ct;
 ste[ite]:= &+servertime;
 ute[ite]:= wholetime - ste[ite] + utimep;   
   
-PrintFile("stime_pirwy1231.txt", ste[ite]);               // *******time of answer  
-PrintFile("utime_pirwy1231.txt", ute[ite]);
+        PrintFile("stime_pirwy1231.txt", <"in single iteration, the server consumes:", ste[ite]>);              
+					 // *******time of answer  
+        PrintFile("utime_pirwy1231.txt", <"in single iteration, the user consumes:", ute[ite]>);
 
 end for;   // end for the  40  iterations
-PrintFile("stime_pirwy1231.txt", <"____the server's average time is:", &+ste/#ste>);  
-PrintFile("utime_pirwy1231.txt", <"______the user's average time is:", &+ute/#ute>);
+        PrintFile("stime_pirwy1231.txt", <"____the server's average time is:", &+ste/#ste>);  
+        PrintFile("utime_pirwy1231.txt", <"______the user's average time is:", &+ute/#ute>);
 
+if npower eq mx then
+        print "---------------end of the multiserver PIR---------------";
+end if;
 end for;   // end for npower iterations
+
+
+
