@@ -6,7 +6,7 @@ HBBG:=[ []: i in[1..Lay_num-1] ];      HBBG[Lay_num]:=[ 2^w-1 : i in [1..2^mx] ]
 while layer gt 0 do
   len:= #HBBG[layer+1];
   str1:= IntegerToString( HBBG[layer+1,1] );
-  HBBG[layer]:= SH6(StringToInteger(str1 cat str1)) * [1: i in [1..2^layer]];
+  HBBG[layer]:= [SH6(StringToInteger(str1 cat str1)): i in [1..2^layer]];
   layer:= layer - 1;
 end while;
 
