@@ -6,11 +6,11 @@ function SH6(num)					// input: an integer
 
 V2:=VectorSpace(GF(2),32);
 			//8个hash初值
-h0 := 0x6a09e667;	     h0:=V2!(Reverse(Intseq(h0,2,32)));	//保证高位在左
+h0 := 0x6a09e667;	h0:=V2!(Reverse(Intseq(h0,2,32)));	//保证高位在左
 h1 := 0xbb67ae85;       h1:=V2!(Reverse(Intseq(h1,2,32)));
-h2 := 0x3c6ef372;        h2:=V2!(Reverse(Intseq(h2,2,32)));
-h3 := 0xa54ff53a;         h3:=V2!(Reverse(Intseq(h3,2,32)));
-h4 := 0x510e527f;        h4:=V2!(Reverse(Intseq(h4,2,32)));
+h2 := 0x3c6ef372;       h2:=V2!(Reverse(Intseq(h2,2,32)));
+h3 := 0xa54ff53a;       h3:=V2!(Reverse(Intseq(h3,2,32)));
+h4 := 0x510e527f;       h4:=V2!(Reverse(Intseq(h4,2,32)));
 h5 := 0x9b05688c;       h5:=V2!(Reverse(Intseq(h5,2,32)));
 h6 := 0x1f83d9ab;       h6:=V2!(Reverse(Intseq(h6,2,32)));
 h7 := 0x5be0cd19;       h7:=V2!(Reverse(Intseq(h7,2,32)));
@@ -305,12 +305,15 @@ end function;
          
 
 
-tpre:=Cputime();
 
+
+tpre:=Cputime();
 w:=256;           q:=NextPrime(2^w);             itrivial := 7;  
 		// using the trivial scheme when n \leq 148;  2^7 =128
 mx:=13; 
 //_________________________________________________________________________________
+
+
 
 								// [ pre-processing
 //__________________________assignment of  E______________________________________        
