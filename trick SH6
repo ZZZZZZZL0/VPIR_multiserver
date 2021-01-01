@@ -1,0 +1,43 @@
+t:=Cputime();
+
+Lay_num:= mx;          		     layer:=Lay_num-1;
+HBBG:=[ []: i in[1..Lay_num-1] ];      HBBG[Lay_num]:=[ 2^w-1 : i in [1..2^mx] ];
+
+while layer gt 0 do
+  len:= #HBBG[layer+1];
+  str1:= IntegerToString( HBBG[layer+1,1] );
+  HBBG[layer]:= SH6(StringToInteger(str1 cat str1)) * [1: i in [1..2^layer]];
+  layer:= layer - 1;
+end while;
+
+str1:= IntegerToString(HBBG[1,1]);
+RootHBBG:= SH6( StringToInteger(str1 cat str1) );    
+delete layer, str1;
+
+
+
+
+//___________________________________HASH________________________________________
+Lay_num:= mx;          		     layer:=Lay_num-1;
+HBBG:=[ []: i in[1..Lay_num-1] ];      HBBG[Lay_num]:=[ 2^w-1 : i in [1..2^mx] ];
+
+while layer gt 0 do
+   len:=#HBBG[layer+1];
+   for j in [1..Ceiling(len/2)] do
+       str1:=IntegerToString( HBBG[layer+1,2*j-1] );
+       if 2*j le len then                                  // in case of n\neq 2^integer
+           str2:=IntegerToString( HBBG[layer+1,2*j] );
+           HBBG[layer,j]:= SH6( StringToInteger(str1 cat str2) );          // both the input and output of SH6(integer) are integers
+       else
+           HBBG[layer,j]:= SH6( str1 );
+       end if;
+   end for;
+   layer:= layer - 1; 
+end while;
+RootHBBG:= SH6( StringToInteger(IntegerToString(HBBG[1,1]) cat IntegerToString(HBBG[1,2]))  );    
+delete layer;
+//_______________________________________________________________________________		
+
+
+ht:=Cputime(t);
+print ht;
