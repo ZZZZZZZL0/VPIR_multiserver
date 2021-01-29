@@ -159,63 +159,86 @@ end function;
 
 
 //__________________________________FUNCTION F_________________________________                  
-function F(z,X,E)  
-              // the input X is a database, E is the binary vector with Hamming weight being d=3
-              // z is a vector in the certain field           //ex: z:=FunctionField(gq,m);
-q:=NextPrime(2^256);
-ans:=0;                 
-for i in [1..#X] do  
-      prd:=1;
-      for j in [1..#E[i]] do
-          /*  if E[i][j] eq 1 then
-                 prd:= prd*z.j;
-            end if;	*/
-	 prd:= prd*z.j^(E[i][j]);
-      end for;
-      ans:= ans+X[i]*prd;      
+function F(m,layer,q)
+
+n:=2^layer;        Rq:=PolynomialRing(GF(q), m);
+
+F1:=0;     F2:=0;     F3:=0;   
+for i:=1 to m do
+     F1:=F1+Rq.i;     F2:=F2+Rq.i;     F3:=F3+Rq.i;   
+end for;
+Ff:=F1*F2*F3;	T:=Monomials(Ff);
+
+for i:=1 to m do
+     Exclude(~T, Rq.i^3);
+     for j:=1 to i-1 do
+          Exclude(~T, Rq.i^2*Rq.j);
+     end for;
+     for j:=i+1 to m do
+          Exclude(~T, Rq.i^2*Rq.j);
+     end for;
 end for;
 
-return ans;                
+Fz:=0;
+for i:=1 to n do 
+      Fz:=Fz+T[i];      
+	// use 1*T[i], because each coefficient is the same  in the implementation
+end for;
+
+return Fz;
 end function;
 //__________________*********************************************_________________
 
 
+
+
+//___________________find the vector Ei for each query index_____________________   
+function Fe(ind, i)
+
+m_set:=[4,4,5,6,7,9,11,13,16,20,25,31,38,48,60,75,94,118,148,186,234,294,371];
+m:=m_set[i];         Ei:=[0: i in [1..m]];      //ind:=100;       
+
+count:=0;     flag:=-1;      
+for i:=1 to m-2 do     
+            if count+Binomial(m-i,2) ge ind then
+                  Ei[i]:=1;       flag:=i;       break;
+            else
+                  count:=count+Binomial(m-i,2);
+            end if;
+end for;
+
+ind:= ind-count;       count:=0;
+for i:=flag+1 to m do
+       if  count+(m-i) ge ind then
+	Ei[i]:=1;     Ei[ind-count+i]:=1;
+	break;
+       else
+	count:=count+(m-i);
+       end if;
+end for;
+
+return Ei;
+end function;
+//________________________________________________________________________________
+
+
+
+
 	//  Rep:=pirwy(query_index,X,Eq,Fz, npower);  
 
-
-pirwy:=function(query_index,X,Eq,Fz,finpow)                                  //basic PIR scheme
+pirwy:=function(query_index,X,Eq,Fz,finpow)                       //basic PIR scheme
 // Eq  is related to the query_index;
 
 //____________________________________INPUT______________________________________
-n:=#X;        k:=2;       d:=2*k-1;       t:=1;      q:=NextPrime(2^256);
-npower:=Ceiling(Log(2,n));
-/*
-m_set:=[4,4,5,6,7,9,11,13,16,20,25,31,38,48,60,75,94,118,148,186];
-if npower in [2..#m_set] then
-      m:=m_set[npower];                         //  layers of thr Merkle tree
-end if;               
-*/
-
-m:=#Eq;                           
-
+n:=#X;        k:=2;       d:=2*k-1;       t:=1;      
+npower:=Ceiling(Log(2,n));             m:=#Eq;                           
+q:= NextPrime(2^256);	 Vq:=VectorSpace(GF(q),m); 
 //_________________________________pre-processing________________________________ 
-q:= NextPrime(2^256);	 Vq:=VectorSpace(GF(q),m);    
-lamda:=[2,3];      			 // 用固定值取代随机生成
-/*
-lamda:=[ ];
-for i in [1..k] do
-      lamdi:=Random(GF(q));
-      while lamdi in lamda or lamdi eq 0 do 
-	        lamdi:=Random(GF(q));
-      end while;
-      lamda[i]:=lamdi;
-end for;
-*/
-
+lamda:=[2,3];      				       // 用固定值取代随机生成
 
 V:=[];           
-for i in [1..t] do                                         // generate aux: t length-m vectors    
-	V[i]:= [Random(q):  i in[1..m] ] ;   	 // 用固定值取代随机生成
+for i in [1..t] do                                             // generate aux: t length-m vectors    
+	V[i]:= [Random(q):  i in[1..m] ] ;   	       // 用固定值取代随机生成
 end for; 
 
 // _____________________________________query_____________________________________
@@ -255,21 +278,16 @@ Fq<x>:=PolynomialRing(GF(q));    derif:=[];       	// set of { f'(lamda_h) }
 for h in [1..k] do
       der:=[];
       for io in [1..m] do       
-                        //parla:=P[io];			// because t=1;
-                        //for i in [1..t] do
-                              //parla:=parla+x^i*V[i][io];  	// a univariant polynomial
-                        //end for;
-                        //der[io]:=pfq[h][io]*Evaluate(Derivative(parla),lamda[h]);
             der[io]:=pfq[h][io]*V[1][io];
       end for;
-      derif[h]:=(&+der);        		//对应f'(\lamda)  		//****
+      derif[h]:=(&+der);        		//对应f'(\lamda)  		 
 end for;
 
 coe:=Matrix(GF(q),d*t+1,2*k,[0: i in [1..(d*t+1)*2*k]]);
 for i in [1..k] do
 for j in [1..d*t+1] do
    if i mod k eq 0 then
-      coe[j][i]:=lamda[k]^(j-1);  					//****
+      coe[j][i]:=lamda[k]^(j-1);  					 
    else
       coe[j][i]:=lamda[i mod k]^(j-1);				
    end if;
@@ -279,9 +297,9 @@ end for;
 for i in [k+1..2*k] do
 for j in [1..d*t+1] do
    if i mod k eq 0 then
-      coe[j][i]:=(j-1)*lamda[k]^(j-2);			  //****
+      coe[j][i]:=(j-1)*lamda[k]^(j-2);			   
    else
-      coe[j][i]:=(j-1)*lamda[i mod k]^(j-2);		 	//****
+      coe[j][i]:=(j-1)*lamda[i mod k]^(j-2);		 	 
    end if;
 end for;
 end for;		
@@ -292,8 +310,7 @@ tre:=Cputime(tu2);	delete tu2;
 
 filenmq:="query_pirwy" cat IntegerToString(finpow) cat ".txt";      
 filenma:="answer_pirwy" cat IntegerToString(finpow) cat ".txt";
-		//RECORD    THIS TIME SHOULD BE DELETE IN THE USER'S TIME
-PrintFile(filenmq, quy);  		//  quy[1],  quy[2]        
+PrintFile(filenmq, quy);  		// quy[1],  quy[2]        
 PrintFile(filenma, Fzq);  		// Fzq[2], pfq[2][1],  pfq[2][2], ... pfq[2][u]
 PrintFile(filenma, pfq);  
 
@@ -308,47 +325,10 @@ end function;
 
 
 
+mx:=20;       w:=256;      q:=NextPrime(2^w);       itrivial := 5;   // n<45;	
+m_set:=[4,4,5,6,7,9,11,13,16,20,25,31,38,48,60,75,94,118,148,186,234,294,371];
+
 tpre:=Cputime();
-
-w:=256;           q:=NextPrime(2^w);             itrivial := 5;   // n<45;
-mx:=17; 
-//_________________________________________________________________________________
-
-								// [ pre-processing
-//__________________________assignment of  E______________________________________        
-m_set:=[4,4,5,6,7,9,11,13,16,20,25,31,38,48,60,75,94,118,148,186];                           
-k:=2;	          d:=2*k-1;                     Eset:=[ []: i in [1..itrivial] ];
-
-for npower in [itrivial+1..mx]  do 
-          n:=2^npower;        m:=m_set[npower];          
-          E:=[];        ST:={1..m-1};        stre:=Subsets(ST,d);        num:=1;
-
-          for iset in stre do
-	E[num]:=[0: id in [1..m]];  
-	for j in iset do       
-	          E[num][j]:=1;
-	end for;
-	num:=num+1;
-          end for;
-
-          stre1:=Subsets(ST,d-1);     //[... ,1]   
-          for iset in stre1 do
-	E[num]:=[0: id in [1..m-1]];       E[num][#E[num]+1]:=1;
-	for j in iset do       
-	          E[num][j]:=1;
-	end for;
-
-	num:=num+1;
-	if num gt n then
-	          break;
-	end if;
-          end for;
-
-          Eset[npower]:=E;       delete num,ST,stre,E;           
-end for;     
- 	 		//ASSIGNMENT IS THE MOST TIME-CONSUMED PART
-print "assignment E consumes", Cputime(tpre);  	
-	
 //___________________________________HASH________________________________________
 Lay_num:= mx;          		     layer:=Lay_num-1;
 HBBG:=[ []: i in[1..Lay_num-1] ];      HBBG[Lay_num]:=[ 2^w-1 : i in [1..2^mx] ];
@@ -369,21 +349,18 @@ delete layer, str1;
 print "+HASH consumes", Cputime(tpre);          delete tpre;
 
 
-				// finish the pre-processing
 
 
-
-
-
+					// finish the pre-processing
 
 
 //________________________________________________________________________________
 for npower in [13..mx] do
      print "__________________the following results are with n=2^%o", npower;  
      n:=2^npower;                       
-     PrintFile("utime_pirwy.txt","when n=2^" cat IntegerToString(npower));
-     PrintFile("stime_pirwy.txt","when n=2^" cat IntegerToString(npower)); 
-     PrintFile("ptime_pirwy.txt","when n=2^" cat IntegerToString(npower)); 
+     PrintFile("utime_pirwy.txt", "when n=2^" cat IntegerToString(npower));
+     PrintFile("stime_pirwy.txt",  "when n=2^" cat IntegerToString(npower)); 
+     PrintFile("ptime_pirwy.txt", "when n=2^" cat IntegerToString(npower)); 
 
 x:=[ 2^w-1 : i in [1..n] ];       query_input:=9;   	  // the user's desired index in [0..n-1]
 //______________________________get the merkle tree______________________________
@@ -399,26 +376,20 @@ else
       HB[Lay_num]:=x;
 end if;
 //_______________________________________________________________________________
-
-
 pretm:=Cputime();
 
 FZ:=<>;
 for i in [itrivial+1..Lay_num+1] do
-        if i ge Lay_num then
-	X:=HB[Lay_num];      E:=Eset[Lay_num];       
-	z:=FunctionField(GF(q),m_set[Lay_num]);   		
-	else
-	X:=HB[i]; 	     E:=Eset[i];	       
-	z:=FunctionField(GF(q),m_set[i]);	                 
-        end if;
-        FZ:=Append(FZ, F(z,X,E));                     
+        j:=Min(i,Lay_num);            X:=HB[j]; 	         mFz:=m_set[j];     	                
+       Fz:=X[1]*F(mFz, j, q);        FZ:=Append(FZ, Fz);                     
 end for;
 
 pretime:=Cputime(pretm);      
 PrintFile("ptime_pirwy.txt", <"server's preparation: generate FZ consumes", pretime> );     
 PrintFile("ptime_pirwy.txt", "____________________________"); 
+delete pretm;
 
+pretm:=Cputime();
 //________________________find the authentication path_______________________	
 alpha:=[0: indx in [1..Lay_num+1]];      // alpha stores these involving indices, starts from 0
 alpha[Lay_num+1]:=query_input;        alpha[Lay_num]:= query_input + 1;
@@ -432,28 +403,27 @@ for j := Lay_num-1 to 1 by -1 do
      alpha[j]:= tp - 2*(tp mod 2) + 1; 
 end for;
 
-utimep:=Cputime(pretm)-pretime;       delete pretm;    // 40次循环之前的user准备工作
+utimep:=Cputime(pretm);       delete pretm;    // 40次循环之前的user准备工作
 		
 //______________________execute the multiserver PIR______________________
 	print "begin execute the multiserver PIR";	
 ute:=[];	ste:=[];
 
-iteration:= 10;                         	                      // 每个n循环40次
+iteration:= 50;                         	                      // 每个n循环40次
 for ite in [1..iteration] do	              
         Res:=[];       			      // 记录PIR的检索结果  
-        servertime:=[];        usertime:=[];        // 记录PIR检索时server花费的时间  			
+        servertime:=[];        usertime:=[];           // 记录PIR检索时server花费的时间  			
 
 for itriv in [1..itrivial] do
         Res[itriv]:= HB[itriv,alpha[itriv]+1]; 
 end for;  
 
 for i in [itrivial+1..Lay_num+1] do
-        query_index:=alpha[i]+1;       Fz:=FZ[i-itrivial];       // i-itrivial: FZ begins from itrivial+1
-        if i ge Lay_num then
-                X:= HB[Lay_num];       Eq:=Eset[Lay_num][query_index];		
-        else
-	X:=HB[i]; 	       Eq:=Eset[i][query_index];        // i-1: due to Eset stars from log n = 2	
-        end if;	
+        query_index:=alpha[i]+1;              
+        j:=Min(i,Lay_num);            
+        X:=HB[j];         mFz:=m_set[j];       Eq:=Fe(query_index, j);
+        Fz:=FZ[j-itrivial];      // i-itrivial: FZ begins from itrivial+1
+
         Rep:=pirwy(query_index,X,Eq,Fz, npower);         Res[i]:=Rep[1];      
         servertime[i-itrivial]:=Rep[2];           usertime[i-itrivial]:=Rep[3];
 end for;   
@@ -500,6 +470,3 @@ if npower eq mx then
         print "---------------end of the multiserver PIR---------------";
 end if;
 end for;   // end for npower iterations
-
-
-
