@@ -1,0 +1,505 @@
+function SH6(num)					// input: an integer
+
+V2:=VectorSpace(GF(2),32);
+			//8个hash初值
+h0 := 0x6a09e667;	     h0:=V2!(Reverse(Intseq(h0,2,32)));	//保证高位在左
+h1 := 0xbb67ae85;       h1:=V2!(Reverse(Intseq(h1,2,32)));
+h2 := 0x3c6ef372;        h2:=V2!(Reverse(Intseq(h2,2,32)));
+h3 := 0xa54ff53a;         h3:=V2!(Reverse(Intseq(h3,2,32)));
+h4 := 0x510e527f;        h4:=V2!(Reverse(Intseq(h4,2,32)));
+h5 := 0x9b05688c;       h5:=V2!(Reverse(Intseq(h5,2,32)));
+h6 := 0x1f83d9ab;       h6:=V2!(Reverse(Intseq(h6,2,32)));
+h7 := 0x5be0cd19;       h7:=V2!(Reverse(Intseq(h7,2,32)));
+			//64个hash常量
+kt:=[
+   0x428a2f98,    0x71374491,   0xb5c0fbcf,    0xe9b5dba5,   0x3956c25b,   0x59f111f1,     0x923f82a4,    0xab1c5ed5,
+   0xd807aa98,   0x12835b01,   0x243185be,  0x550c7dc3,    0x72be5d74,   0x80deb1fe,    0x9bdc06a7,   0xc19bf174,
+   0xe49b69c1,   0xefbe4786,    0x0fc19dc6,    0x240ca1cc,    0x2de92c6f,    0x4a7484aa,    0x5cb0a9dc,    0x76f988da,
+   0x983e5152,   0xa831c66d,   0xb00327c8,   0xbf597fc7,     0xc6e00bf3,    0xd5a79147,   0x06ca6351,    0x14292967,
+   0x27b70a85,   0x2e1b2138,   0x4d2c6dfc,    0x53380d13,   0x650a7354,   0x766a0abb,   0x81c2c92e,    0x92722c85,
+   0xa2bfe8a1,    0xa81a664b,   0xc24b8b70,   0xc76c51a3,    0xd192e819,   0xd6990624,   0xf40e3585,    0x106aa070,
+   0x19a4c116,   0x1e376c08,    0x2748774c,   0x34b0bcb5,   0x391c0cb3,   0x4ed8aa4a,    0x5b9cca4f,     0x682e6ff3,
+   0x748f82ee,    0x78a5636f,    0x84c87814,   0x8cc70208,    0x90befffa,     0xa4506ceb,    0xbef9a3f7,      0xc67178f2 ];
+//_________________________________________________________________
+v2i:=function(x)			             //域向量转整数
+        //   v:=Eltseq(x);
+v:=[0: i in [1..Degree(x)]];
+for i in [1..#v] do
+	if x[i] eq 1 then
+		v[i]:=1;
+	end if;
+end for;
+           return Seqint(Reverse(v),2);   //magma中高低位与二进制相反
+end function;
+//_________________________________________________________________
+i2v:=function(n)			             //整数转域向量
+           return V2!( Reverse(Intseq(n mod 2^32,2,32)) );
+end function;
+//_________________________________________________________________
+sigma0:=function(x)
+           v1:=Rotate(x,7);     v2:=Rotate(x,18);       //循环右移
+           v3:=Rotate(x,3);   	for i in [1..3] do   //右移
+			      v3[i]:=0;
+			end for;
+           return v1+v2+v3;
+end function;
+//_________________________________________________________________
+sigma1:=function(x)
+           v1:=Rotate(x,17);     v2:=Rotate(x,19);       //循环右移
+           v3:=Rotate(x,10);   	for i in [1..10] do   //右移
+			      v3[i]:=0;
+			end for;
+           return v1+v2+v3;
+end function;
+//_________________________________________________________________
+Sigma0:=function(x)
+           v1:=Rotate(x,2);     v2:=Rotate(x,13);     v3:=Rotate(x,22);
+           return v1+v2+v3;
+end function;
+//_________________________________________________________________
+Sigma1:=function(x)
+           v1:=Rotate(x,6);     v2:=Rotate(x,11);     v3:=Rotate(x,25);
+           return v1+v2+v3;
+end function;
+//_________________________________________________________________
+Ch:=function(x,y,z)   			       //choice
+v1:=x;	v2:=x;
+for i in [1..Degree(x)] do
+	if x[i] eq 1 and y[i] eq 1 then 	//按位与
+		v1[i]:=1;
+	else
+		v1[i]:=0;
+	end if;
+
+	if x[i] eq 0 and z[i] eq 1 then
+		v2[i]:=1;
+	else
+		v2[i]:=0;
+	end if;
+end for;
+	return v1+v2;
+end function;
+//_________________________________________________________________
+Ma:=function(x,y,z)   			    //majority
+v1:=x;	v2:=x;	v3:=x;
+for i in [1..Degree(x)] do
+	if x[i] eq 1 and y[i] eq 1 then	//按位与
+		v1[i]:=1;
+	else
+		v1[i]:=0;
+	end if;
+
+	if x[i] eq 1 and z[i] eq 1 then	//按位与
+		v2[i]:=1;
+	else
+		v2[i]:=0;
+	end if;
+
+	if y[i] eq 1 and z[i] eq 1 then	//按位与
+		v3[i]:=1;
+	else
+		v3[i]:=0;
+	end if;
+end for;
+	return v1+v2+v3;
+end function;
+//__________________________________________________________________________________
+					       //INPUT
+ipnm:=Reverse(Intseq(num,2));
+lenim:=#ipnm;   		   
+			// 附加填充比特  至448位
+//__________________________________________________________________________________
+ipnm[#ipnm+1]:=1;   
+padd:=512-64-(lenim mod 512)-1;
+ipnm:=ipnm cat [0: i in[1..padd]];
+			//附加长度值
+temp:=Reverse(Intseq(lenim,2,64));  
+ipnm:=ipnm cat temp;      
+//__________________________________________________________________________________
+			//构造64个word，每一个32bit
+wt:=[];
+for i := 1 to 16 by 1 do 
+	wt[i]:=V2!(ipnm[32*(i-1)+1..32*i]);
+end for;
+//__________________________________________________________________________________
+for i := 17 to 64 by 1 do 
+            tempwt:=v2i(sigma1(wt[i-2]))+v2i(wt[i-7])+v2i(sigma0(wt[i-15]))+v2i(wt[i-16]);
+            wt[i]:=i2v(tempwt);
+end for;    		//已得到64个word: #wt=64
+//__________________________________________________________________________________
+					          //循环
+a:=h0;   b:=h1;   c:=h2;   d:=h3;   
+e:=h4;   f:=h5;    g:=h6;   h:=h7; 
+for i in [1..64] do
+        tp1:=v2i(h)+v2i(Sigma1(e))+v2i(Ch(e,f,g))+v2i( V2!(Reverse(Intseq(kt[i],2,32))) )+v2i(wt[i]);
+        tp2:=v2i(Sigma0(a))+v2i(Ma(a,b,c));	        //big integers
+        h:=g;    g:=f;   f:=e;    
+	tpe:=v2i(d)+tp1;     e:=i2v(tpe);   
+        d:=c;    c:=b;   b:=a;   
+	tpa:=tp1+tp2;   	a:=i2v(tpa);  
+end for;
+
+hout:=[];
+hout[1]:=(v2i(h0)+v2i(a)) mod 2^32;   hout[2]:=(v2i(h1)+v2i(b)) mod 2^32;   
+hout[3]:=(v2i(h2)+v2i(c)) mod 2^32;   hout[4]:=(v2i(h3)+v2i(d)) mod 2^32;
+hout[5]:=(v2i(h4)+v2i(e)) mod 2^32;   hout[6]:=(v2i(h5)+v2i(f))  mod 2^32;
+hout[7]:=(v2i(h6)+v2i(g)) mod 2^32;   hout[8]:=(v2i(h7)+v2i(h)) mod 2^32;
+//_________________________________________________________________________________
+					    //OUTPUT
+Enc_num:=[];
+for i in [1..#hout] do
+    Enc_num:= Enc_num cat Reverse(Intseq(hout[i],2,32));
+end for;
+
+return Seqint(Reverse(Enc_num),2);
+end function;
+//__________________*********************************************_________________
+
+
+
+
+//__________________________________FUNCTION F_________________________________                  
+function F(z,X,E)  
+              // the input X is a database, E is the binary vector with Hamming weight being d=3
+              // z is a vector in the certain field           //ex: z:=FunctionField(gq,m);
+q:=NextPrime(2^256);
+ans:=0;                 
+for i in [1..#X] do  
+      prd:=1;
+      for j in [1..#E[i]] do
+          /*  if E[i][j] eq 1 then
+                 prd:= prd*z.j;
+            end if;	*/
+	 prd:= prd*z.j^(E[i][j]);
+      end for;
+      ans:= ans+X[i]*prd;      
+end for;
+
+return ans;                
+end function;
+//__________________*********************************************_________________
+
+
+	//  Rep:=pirwy(query_index,X,Eq,Fz, npower);  
+
+
+pirwy:=function(query_index,X,Eq,Fz,finpow)                                  //basic PIR scheme
+// Eq  is related to the query_index;
+
+//____________________________________INPUT______________________________________
+n:=#X;        k:=2;       d:=2*k-1;       t:=1;      q:=NextPrime(2^256);
+npower:=Ceiling(Log(2,n));
+/*
+m_set:=[4,4,5,6,7,9,11,13,16,20,25,31,38,48,60,75,94,118,148,186];
+if npower in [2..#m_set] then
+      m:=m_set[npower];                         //  layers of thr Merkle tree
+end if;               
+*/
+
+m:=#Eq;                           
+
+//_________________________________pre-processing________________________________ 
+q:= NextPrime(2^256);	 Vq:=VectorSpace(GF(q),m);    
+lamda:=[2,3];      			 // 用固定值取代随机生成
+/*
+lamda:=[ ];
+for i in [1..k] do
+      lamdi:=Random(GF(q));
+      while lamdi in lamda or lamdi eq 0 do 
+	        lamdi:=Random(GF(q));
+      end while;
+      lamda[i]:=lamdi;
+end for;
+*/
+
+
+V:=[];           
+for i in [1..t] do                                         // generate aux: t length-m vectors    
+	V[i]:= [Random(q):  i in[1..m] ] ;   	 // 用固定值取代随机生成
+end for; 
+
+// _____________________________________query_____________________________________
+tu1:=Cputime();
+
+quy:=[];
+for i in [1..k] do
+      quy[i]:=Eq;
+for j in [1..t] do
+      for iv in [1..#V[j]] do
+             quy[i][iv]:=(quy[i][iv]+lamda[i]^j*V[j][iv]) mod q;
+      end for; 
+end for;
+end for;
+
+tq:=Cputime(tu1);	delete tu1;
+//_________________________________________________________________________________
+
+tp:=Cputime(); 
+// _________________________ answer server_1 (s10,s20,s30) _______________________
+Fzq:=[];        Fzq[1]:=Evaluate(Fz, quy[1]);         pfq:=[];         pfq[1]:=[];       
+for j in [1..m] do 
+      pfq[1][j]:=Evaluate(Derivative(Fz,j), quy[1]);      	
+end for;
+// _________________________ answer server_2 (s11,ss21,s31) ______________________
+Fzq[2]:=Evaluate(Fz,quy[2]);       pfq[2]:=[];    	
+for j in [1..m] do 
+      pfq[2][j]:=Evaluate(Derivative(Fz,j), quy[2]);      	
+end for;
+
+anstime:=Cputime(tp);          	//answer is Fzq[2], pfq[2][1],  pfq[2][2], ...pfq[2][m]
+delete tp;
+// __________________________________reconstruction________________________________
+tu2:=Cputime();
+
+Fq<x>:=PolynomialRing(GF(q));    derif:=[];       	// set of { f'(lamda_h) }
+for h in [1..k] do
+      der:=[];
+      for io in [1..m] do       
+                        //parla:=P[io];			// because t=1;
+                        //for i in [1..t] do
+                              //parla:=parla+x^i*V[i][io];  	// a univariant polynomial
+                        //end for;
+                        //der[io]:=pfq[h][io]*Evaluate(Derivative(parla),lamda[h]);
+            der[io]:=pfq[h][io]*V[1][io];
+      end for;
+      derif[h]:=(&+der);        		//对应f'(\lamda)  		//****
+end for;
+
+coe:=Matrix(GF(q),d*t+1,2*k,[0: i in [1..(d*t+1)*2*k]]);
+for i in [1..k] do
+for j in [1..d*t+1] do
+   if i mod k eq 0 then
+      coe[j][i]:=lamda[k]^(j-1);  					//****
+   else
+      coe[j][i]:=lamda[i mod k]^(j-1);				
+   end if;
+end for;
+end for;
+
+for i in [k+1..2*k] do
+for j in [1..d*t+1] do
+   if i mod k eq 0 then
+      coe[j][i]:=(j-1)*lamda[k]^(j-2);			  //****
+   else
+      coe[j][i]:=(j-1)*lamda[i mod k]^(j-2);		 	//****
+   end if;
+end for;
+end for;		
+tpv:=Fzq cat derif;      reo,reg:=Solution(coe, Vector(tpv));  
+
+tre:=Cputime(tu2);	delete tu2;
+// _________________________________________________________________________________
+
+filenmq:="query_pirwy" cat IntegerToString(finpow) cat ".txt";      
+filenma:="answer_pirwy" cat IntegerToString(finpow) cat ".txt";
+		//RECORD    THIS TIME SHOULD BE DELETE IN THE USER'S TIME
+PrintFile(filenmq, quy);  		//  quy[1],  quy[2]        
+PrintFile(filenma, Fzq);  		// Fzq[2], pfq[2][1],  pfq[2][2], ... pfq[2][u]
+PrintFile(filenma, pfq);  
+
+usertime:=tq+tre;    // time of query and reconstruction		
+// _________________________________________________________________________________
+
+return <reo[1], anstime, usertime>;
+end function;
+//__________________*********************************************_________________
+		print "finish loading pirwy";  
+    
+
+
+
+tpre:=Cputime();
+
+w:=256;           q:=NextPrime(2^w);             itrivial := 5;   // n<45;
+mx:=17; 
+//_________________________________________________________________________________
+
+								// [ pre-processing
+//__________________________assignment of  E______________________________________        
+m_set:=[4,4,5,6,7,9,11,13,16,20,25,31,38,48,60,75,94,118,148,186];                           
+k:=2;	          d:=2*k-1;                     Eset:=[ []: i in [1..itrivial] ];
+
+for npower in [itrivial+1..mx]  do 
+          n:=2^npower;        m:=m_set[npower];          
+          E:=[];        ST:={1..m-1};        stre:=Subsets(ST,d);        num:=1;
+
+          for iset in stre do
+	E[num]:=[0: id in [1..m]];  
+	for j in iset do       
+	          E[num][j]:=1;
+	end for;
+	num:=num+1;
+          end for;
+
+          stre1:=Subsets(ST,d-1);     //[... ,1]   
+          for iset in stre1 do
+	E[num]:=[0: id in [1..m-1]];       E[num][#E[num]+1]:=1;
+	for j in iset do       
+	          E[num][j]:=1;
+	end for;
+
+	num:=num+1;
+	if num gt n then
+	          break;
+	end if;
+          end for;
+
+          Eset[npower]:=E;       delete num,ST,stre,E;           
+end for;     
+ 	 		//ASSIGNMENT IS THE MOST TIME-CONSUMED PART
+print "assignment E consumes", Cputime(tpre);  	
+	
+//___________________________________HASH________________________________________
+Lay_num:= mx;          		     layer:=Lay_num-1;
+HBBG:=[ []: i in[1..Lay_num-1] ];      HBBG[Lay_num]:=[ 2^w-1 : i in [1..2^mx] ];
+
+while layer gt 0 do
+       len:= #HBBG[layer+1];
+       str1:= IntegerToString( HBBG[layer+1,1] );
+	temps6:=SH6(StringToInteger(str1 cat str1));
+       	HBBG[layer]:=  [temps6 : i in [1..2^layer]];
+       // HBBG[layer]:= [SH6(StringToInteger(str1 cat str1)) : i in [1..2^layer]];
+       layer:= layer - 1;
+end while;
+
+str1:= IntegerToString(HBBG[1,1]);
+RootHBBG:= SH6( StringToInteger(str1 cat str1) );    
+delete layer, str1;
+//________________________________________________________________________________    
+print "+HASH consumes", Cputime(tpre);          delete tpre;
+
+
+				// finish the pre-processing
+
+
+
+
+
+
+
+//________________________________________________________________________________
+for npower in [13..mx] do
+     print "__________________the following results are with n=2^%o", npower;  
+     n:=2^npower;                       
+     PrintFile("utime_pirwy.txt","when n=2^" cat IntegerToString(npower));
+     PrintFile("stime_pirwy.txt","when n=2^" cat IntegerToString(npower)); 
+     PrintFile("ptime_pirwy.txt","when n=2^" cat IntegerToString(npower)); 
+
+x:=[ 2^w-1 : i in [1..n] ];       query_input:=9;   	  // the user's desired index in [0..n-1]
+//______________________________get the merkle tree______________________________
+Lay_num:= Ceiling(Log(2,n));         
+if Lay_num eq mx then 
+      HB:=HBBG;      Root:= RootHBBG;
+else 
+      HB:=[ []: i in[1..Lay_num-1] ];       
+      idst:= mx-Lay_num;		Root:= HBBG[idst,1];
+      for i in [1..Lay_num-1] do 
+            HB[i]:= HBBG[idst+i][1..2^i];	
+      end for;
+      HB[Lay_num]:=x;
+end if;
+//_______________________________________________________________________________
+
+
+pretm:=Cputime();
+
+FZ:=<>;
+for i in [itrivial+1..Lay_num+1] do
+        if i ge Lay_num then
+	X:=HB[Lay_num];      E:=Eset[Lay_num];       
+	z:=FunctionField(GF(q),m_set[Lay_num]);   		
+	else
+	X:=HB[i]; 	     E:=Eset[i];	       
+	z:=FunctionField(GF(q),m_set[i]);	                 
+        end if;
+        FZ:=Append(FZ, F(z,X,E));                     
+end for;
+
+pretime:=Cputime(pretm);      
+PrintFile("ptime_pirwy.txt", <"server's preparation: generate FZ consumes", pretime> );     
+PrintFile("ptime_pirwy.txt", "____________________________"); 
+
+//________________________find the authentication path_______________________	
+alpha:=[0: indx in [1..Lay_num+1]];      // alpha stores these involving indices, starts from 0
+alpha[Lay_num+1]:=query_input;        alpha[Lay_num]:= query_input + 1;
+
+if query_input mod 2 eq 1 then 
+     alpha[Lay_num]:= query_input - 1;
+end if;
+
+for j := Lay_num-1 to 1 by -1 do
+     tp:=Floor(alpha[j+1]/2);
+     alpha[j]:= tp - 2*(tp mod 2) + 1; 
+end for;
+
+utimep:=Cputime(pretm)-pretime;       delete pretm;    // 40次循环之前的user准备工作
+		
+//______________________execute the multiserver PIR______________________
+	print "begin execute the multiserver PIR";	
+ute:=[];	ste:=[];
+
+iteration:= 10;                         	                      // 每个n循环40次
+for ite in [1..iteration] do	              
+        Res:=[];       			      // 记录PIR的检索结果  
+        servertime:=[];        usertime:=[];        // 记录PIR检索时server花费的时间  			
+
+for itriv in [1..itrivial] do
+        Res[itriv]:= HB[itriv,alpha[itriv]+1]; 
+end for;  
+
+for i in [itrivial+1..Lay_num+1] do
+        query_index:=alpha[i]+1;       Fz:=FZ[i-itrivial];       // i-itrivial: FZ begins from itrivial+1
+        if i ge Lay_num then
+                X:= HB[Lay_num];       Eq:=Eset[Lay_num][query_index];		
+        else
+	X:=HB[i]; 	       Eq:=Eset[i][query_index];        // i-1: due to Eset stars from log n = 2	
+        end if;	
+        Rep:=pirwy(query_index,X,Eq,Fz, npower);         Res[i]:=Rep[1];      
+        servertime[i-itrivial]:=Rep[2];           usertime[i-itrivial]:=Rep[3];
+end for;   
+ 
+ct:=Cputime();  
+
+       
+//________________________________Verification__________________________   
+ver:=Res[Lay_num+1];         	 j:=Lay_num;
+while j gt 0 do
+        ver:=IntegerToString(ver);
+        tempj:=IntegerToString( Res[j] );    	          // MonStgElt
+        if IsOdd(alpha[j]) then
+                ver:=SH6(StringToInteger(ver cat tempj) );
+        else
+                ver:=SH6(StringToInteger(tempj cat ver) );
+        end if;
+        j:=j-1;
+end while;
+
+	if ite eq 1 then
+if  ver eq Root  then
+        print "result",Res[#Res],", pass the verification";
+else 
+        print "result",Res[#Res],", does NOT pass the verification";
+end if; 
+	end if;
+//____________________________________________________________________
+vertime:=Cputime(ct);    //****time of query+reconstruction+verification
+delete ct;
+
+ste[ite]:= &+servertime;
+ute[ite]:= &+usertime+vertime + utimep;      
+  
+        PrintFile("stime_pirwy.txt", <"in single iteration, the server consumes:", ste[ite]>);              
+        PrintFile("utime_pirwy.txt", <"in single iteration, the user consumes:", ute[ite]>);
+
+end for;   // end for the  40  iterations
+
+        PrintFile("stime_pirwy.txt", <"____the server's average time is:", &+ste/#ste>);  
+        PrintFile("utime_pirwy.txt", <"______the user's average time is:", &+ute/#ute>);
+
+if npower eq mx then
+        print "---------------end of the multiserver PIR---------------";
+end if;
+end for;   // end for npower iterations
+
+
+
